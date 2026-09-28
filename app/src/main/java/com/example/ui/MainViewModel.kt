@@ -24,8 +24,16 @@ import com.example.service.ArushiAssistantService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+enum class TaskFilter {
+    ALL,
+    ACTIVE,
+    COMPLETED,
+    FAILED
+}
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -68,6 +76,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val lastResponseText = geminiClient.lastResponseText
     val detectedLanguage = geminiClient.detectedLanguage
 
+    val textInput = MutableStateFlow("")
+
+    val taskFilter = MutableStateFlow(TaskFilter.ALL)
+
     val allTasks = database.taskDao().getAllTasks().stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
@@ -79,6 +91,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         SharingStarted.WhileSubscribed(5000),
         emptyList()
     )
+
+    val filteredTasks = combine(allTasks, taskFilter) { tasks, filter ->
+        when (filter) {
+            TaskFilter.ALL -> tasks
+            TaskFilter.ACTIVE -> tasks.filter { it.status !in listOf("COMPLETED", "FAILED", "CANCELLED") }
+            TaskFilter.COMPLETED -> tasks.filter { it.status == "COMPLETED" }
+            TaskFilter.FAILED -> tasks.filter { it.status in listOf("FAILED", "CANCELLED") }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allProjects = database.projectDao().getAllProjects().stateIn(
         viewModelScope,
@@ -128,6 +149,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         geminiClient.stopSpeaking()
     }
 
+    fun submitTextInput() {
+        val query = textInput.value.trim()
+        if (query.isNotBlank()) {
+            textInput.value = ""
+            processDirectPrompt(query)
+        }
+    }
+
     fun processDirectPrompt(prompt: String) {
         audioOutputPlayer.stopPlayback()
         geminiClient.processUserSpeech(prompt, assistantService)
@@ -139,6 +168,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Universal Multi-Task Launchers
     fun startAppBuild(name: String, description: String) {
         assistantService?.startAppBuildTask(name, description)
             ?: viewModelScope.launch {
@@ -164,11 +194,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         assistantService?.startVideoEditTask(title, instructions)
     }
 
+    fun startCodeFix(projectName: String, issueDesc: String) {
+        assistantService?.startCodeFixTask(projectName, issueDesc)
+    }
+
+    fun startDocumentSummarize(title: String, content: String) {
+        assistantService?.startDocumentSummarizeTask(title, content)
+    }
+
+    fun startEmailDraft(subject: String, details: String) {
+        assistantService?.startEmailDraftTask(subject, details)
+    }
+
+    fun startResearch(topic: String) {
+        assistantService?.startResearchTask(topic)
+    }
+
+    fun startProjectBackup(projectName: String) {
+        assistantService?.startProjectBackupTask(projectName)
+    }
+
     fun cancelTask(taskId: String) {
-        assistantService?.cancelCurrentTask()
-        viewModelScope.launch {
-            database.taskDao().cancelTask(taskId)
-        }
+        assistantService?.cancelTask(taskId)
+            ?: viewModelScope.launch {
+                database.taskDao().cancelTask(taskId)
+            }
     }
 
     fun selectProject(project: ProjectEntity) {

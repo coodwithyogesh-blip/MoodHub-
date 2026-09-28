@@ -5,8 +5,6 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,10 +28,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -41,8 +38,11 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,7 +61,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -82,6 +81,7 @@ fun VoiceScreen(
     val lastResponseText by viewModel.lastResponseText.collectAsState()
     val detectedLanguage by viewModel.detectedLanguage.collectAsState()
     val activeTasks by viewModel.activeTasks.collectAsState()
+    val textInput by viewModel.textInput.collectAsState()
 
     var hasMicPermission by remember {
         mutableStateOf(
@@ -119,20 +119,20 @@ fun VoiceScreen(
             .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         // Top Status Header with Avatar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp),
+                .padding(vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(46.dp)
                         .clip(CircleShape)
                         .border(2.dp, Color(0xFF818CF8), CircleShape)
                 ) {
@@ -163,7 +163,7 @@ fun VoiceScreen(
             val (badgeBg, badgeText, badgeColor) = when (assistantState) {
                 AssistantState.LISTENING -> Triple(Color(0xFF0284C7).copy(alpha = 0.25f), "LISTENING", Color(0xFF38BDF8))
                 AssistantState.SPEAKING -> Triple(Color(0xFF9333EA).copy(alpha = 0.25f), "SPEAKING", Color(0xFFC084FC))
-                AssistantState.WORKING -> Triple(Color(0xFF059669).copy(alpha = 0.25f), "RUNNING AGENT", Color(0xFF34D399))
+                AssistantState.WORKING -> Triple(Color(0xFF059669).copy(alpha = 0.25f), "AGENT ACTIVE", Color(0xFF34D399))
                 AssistantState.CONNECTING -> Triple(Color(0xFFD97706).copy(alpha = 0.25f), "CONNECTING", Color(0xFFFBBF24))
                 AssistantState.ERROR -> Triple(Color(0xFFDC2626).copy(alpha = 0.25f), "ERROR", Color(0xFFF87171))
                 AssistantState.IDLE -> Triple(Color(0xFF4F46E5).copy(alpha = 0.2f), "STANDBY", Color(0xFFA5B4FC))
@@ -183,47 +183,78 @@ fun VoiceScreen(
             }
         }
 
-        // Active Background Task Banner (if user returns or task is active)
+        // Active Parallel Tasks Banner (Shows all active running tasks)
         if (activeTasks.isNotEmpty()) {
-            val task = activeTasks.first()
-            ElevatedCard(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                colors = CardDefaults.elevatedCardColors(containerColor = Color(0xFF1E293B)),
-                shape = RoundedCornerShape(12.dp)
+                    .padding(vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Background Job: ${task.title}",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFF38BDF8),
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = task.currentStep,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White
-                        )
-                    }
-                    OutlinedButton(
-                        onClick = { viewModel.cancelTask(task.id) },
-                        modifier = Modifier.testTag("cancel_active_task_button")
+                    Text(
+                        text = "Running Tasks (${activeTasks.size})",
+                        color = Color(0xFF38BDF8),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Executing in parallel",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 11.sp
+                    )
+                }
+
+                activeTasks.take(3).forEach { task ->
+                    ElevatedCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.elevatedCardColors(containerColor = Color(0xFF1E293B)),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text("Cancel", fontSize = 11.sp)
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = task.title,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                OutlinedButton(
+                                    onClick = { viewModel.cancelTask(task.id) },
+                                    modifier = Modifier.height(28.dp),
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                ) {
+                                    Text("Cancel", fontSize = 10.sp, color = Color(0xFFF87171))
+                                }
+                            }
+                            Text(
+                                text = task.currentStep,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF94A3B8),
+                                fontSize = 11.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            LinearProgressIndicator(
+                                progress = { task.progress },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = Color(0xFF38BDF8),
+                                trackColor = Color(0xFF334155)
+                            )
+                        }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Center Reactive Sonic Wave Sphere
         SonicWaveSphere(
@@ -238,7 +269,7 @@ fun VoiceScreen(
             }
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         // Conversation / Response Card
         Card(
@@ -249,7 +280,7 @@ fun VoiceScreen(
             shape = RoundedCornerShape(16.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF312E81))
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(14.dp)) {
                 if (recognizedText.isNotBlank()) {
                     Text(
                         text = "You: \"$recognizedText\"",
@@ -257,27 +288,27 @@ fun VoiceScreen(
                         color = Color(0xFF93C5FD),
                         fontWeight = FontWeight.Medium
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                 }
 
                 Text(
                     text = if (lastResponseText.isNotBlank()) {
                         lastResponseText
                     } else {
-                        "Tap the sphere or mic button below to talk to Arushi in Hindi, Hinglish, or English!"
+                        "Tap the sphere or speak/type any task below: app building, thumbnail, code fixing, summaries, emails, or phone actions!"
                     },
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White,
-                    lineHeight = 22.sp
+                    lineHeight = 21.sp
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Quick Suggestion Voice Chips
         Text(
-            text = "Suggested Voice Prompts",
+            text = "Suggested Tasks & Voice Prompts",
             style = MaterialTheme.typography.labelSmall,
             color = Color(0xFF94A3B8),
             modifier = Modifier
@@ -292,12 +323,16 @@ fun VoiceScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             val chips = listOf(
-                "WhatsApp kholo",
                 "Carpenter app bana do",
+                "Thumbnail bana do",
+                "Code bug fix karo",
+                "Document summarize karo",
+                "Ek email draft karo",
+                "Is topic par research karo",
+                "Project backup bana do",
+                "WhatsApp kholo",
                 "Call Rahul",
                 "Ek mast joke sunao",
-                "YouTube thumbnail bana do",
-                "Mere liye video edit karo",
                 "English please",
                 "Hindi mein bolo"
             )
@@ -313,20 +348,67 @@ fun VoiceScreen(
                     Text(
                         text = chip,
                         color = Color.White,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp)
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Universal Text Input Bar (Section 11 Universal Text Control)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = textInput,
+                onValueChange = { viewModel.textInput.value = it },
+                placeholder = { Text("Ask Arushi anything or type a task...", fontSize = 12.sp, color = Color(0xFF64748B)) },
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("universal_text_input"),
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF6366F1),
+                    unfocusedBorderColor = Color(0xFF334155),
+                    focusedContainerColor = Color(0xFF1E293B),
+                    unfocusedContainerColor = Color(0xFF1E293B),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            IconButton(
+                onClick = { viewModel.submitTextInput() },
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF6366F1))
+                    .testTag("btn_send_text_task")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Send,
+                    contentDescription = "Send Command",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Main Control Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp),
+                .padding(vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -342,14 +424,14 @@ fun VoiceScreen(
                     tint = Color(0xFF38BDF8)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Test Speaker", color = Color.White, fontSize = 12.sp)
+                Text("Test Speaker", color = Color.White, fontSize = 11.sp)
             }
 
             // Central Mic Button
             val isListening = assistantState == AssistantState.LISTENING
             Box(
                 modifier = Modifier
-                    .size(64.dp)
+                    .size(60.dp)
                     .clip(CircleShape)
                     .background(
                         if (isListening) Color(0xFFEF4444) else Color(0xFF6366F1)
@@ -368,7 +450,7 @@ fun VoiceScreen(
                     imageVector = if (isListening) Icons.Default.MicOff else Icons.Default.Mic,
                     contentDescription = if (isListening) "Stop Listening" else "Start Listening",
                     tint = Color.White,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(30.dp)
                 )
             }
 
@@ -384,7 +466,7 @@ fun VoiceScreen(
                     tint = Color(0xFFF87171)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Stop", color = Color.White, fontSize = 12.sp)
+                Text("Stop", color = Color.White, fontSize = 11.sp)
             }
         }
 

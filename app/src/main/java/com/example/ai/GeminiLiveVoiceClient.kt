@@ -173,25 +173,78 @@ class GeminiLiveVoiceClient(
         }
 
         // 5. YouTube Thumbnail Intent
-        if (s.contains("thumbnail") && (s.contains("bana") || s.contains("generate") || s.contains("create"))) {
+        if (s.contains("thumbnail") && (s.contains("bana") || s.contains("generate") || s.contains("create") || s.contains("design"))) {
             _assistantState.value = AssistantState.WORKING
-            val title = "Top Secret Strategy"
+            val title = if (s.contains("video")) "YouTube Video Thumbnail" else "High-CTR Banner"
             service?.startThumbnailTask(title, speech)
-            val reply = "Zabardast! High-CTR 16:9 YouTube thumbnail design karna shuru kar diya hai!"
+            val reply = "Zabardast! High-CTR 16:9 YouTube thumbnail design karna shuru kar diya hai. Dusra kaam bhi bata sakte ho!"
             speakReply(reply, "startThumbnailTask", true)
             return true
         }
 
         // 6. Video Edit Intent
-        if (s.contains("video") && (s.contains("edit") || s.contains("cut") || s.contains("subtitle"))) {
+        if (s.contains("video") && (s.contains("edit") || s.contains("cut") || s.contains("subtitle") || s.contains("short"))) {
             _assistantState.value = AssistantState.WORKING
-            service?.startVideoEditTask("My Vlog", speech)
-            val reply = "Haan ji! Video ke cut markers aur subtitles generate karne ka task background mein start ho gaya hai."
+            service?.startVideoEditTask("Vlog Edit", speech)
+            val reply = "Haan ji! Video ke cut markers aur subtitles generate karne ka task start kar diya hai."
             speakReply(reply, "startVideoEditTask", true)
             return true
         }
 
-        // 7. Call Contact Intent (e.g. "Rahul ko call karo", "Call Mom", "Call Mummy")
+        // 7. Code Bug Fixing & Debugging Intent
+        if (s.contains("code fix") || s.contains("bug fix") || s.contains("error fix") || s.contains("isko fix karo") || s.contains("fix this") || s.contains("debug")) {
+            _assistantState.value = AssistantState.WORKING
+            service?.startCodeFixTask("Active Project", speech)
+            val reply = "Bilkul! Main project files scan karke bug identify aur fix kar rahi hoon."
+            speakReply(reply, "startCodeFixTask", true)
+            return true
+        }
+
+        // 8. Document & PDF Summarization Intent
+        if (s.contains("summarize") || s.contains("summary") || s.contains("pdf check") || s.contains("document") || s.contains("dossier")) {
+            _assistantState.value = AssistantState.WORKING
+            service?.startDocumentSummarizeTask("Document Review", speech)
+            val reply = "Theek hai! Document analyze karke key takeaways aur executive summary create kar rahi hoon."
+            speakReply(reply, "startDocumentSummarizeTask", true)
+            return true
+        }
+
+        // 9. Email Drafting Intent
+        if (s.contains("email draft") || s.contains("mail likh") || s.contains("draft email") || s.contains("ek email") || s.contains("email likho")) {
+            _assistantState.value = AssistantState.WORKING
+            service?.startEmailDraftTask("Important Update", speech)
+            val reply = "Samajh gayi! Professional aur polished email draft kar rahi hoon."
+            speakReply(reply, "startEmailDraftTask", true)
+            return true
+        }
+
+        // 10. Research & Analysis Intent
+        if (s.contains("research") || s.contains("analyze topic") || s.contains("analysis")) {
+            _assistantState.value = AssistantState.WORKING
+            service?.startResearchTask(speech)
+            val reply = "Research start ho gayi hai! Main strategic insights report compile kar rahi hoon."
+            speakReply(reply, "startResearchTask", true)
+            return true
+        }
+
+        // 11. Project Backup / Checkpoint Intent
+        if (s.contains("backup") || s.contains("checkpoint")) {
+            _assistantState.value = AssistantState.WORKING
+            service?.startProjectBackupTask("Main Workspace")
+            val reply = "Done! Workspace ka timestamped backup checkpoint secure kar diya hai."
+            speakReply(reply, "startProjectBackupTask", true)
+            return true
+        }
+
+        // 12. Task Cancellation Intent
+        if (s.contains("task stop") || s.contains("cancel task") || s.contains("task cancel") || s.contains("stop karo")) {
+            service?.cancelAllTasks()
+            val reply = "Theek hai, background task ko cancel kar diya hai. Koi aur kaam?"
+            speakReply(reply, "cancelTask", true)
+            return true
+        }
+
+        // 13. Call Contact Intent (e.g. "Rahul ko call karo", "Call Mom", "Call Mummy")
         val callRegex = Regex("""(?:call|phone|dial)\s+([a-zA-Z0-9\s]+)|([a-zA-Z]+)\s+ko\s+(?:call|phone)""")
         val match = callRegex.find(s)
         if (match != null) {
