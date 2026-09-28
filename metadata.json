@@ -1,0 +1,6 @@
+{
+  "name": "Arushi AI",
+  "description": "Real-time voice AI assistant and autonomous agent orchestrator",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
