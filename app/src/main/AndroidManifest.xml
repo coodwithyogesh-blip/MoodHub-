@@ -64,6 +64,21 @@
             </intent-filter>
         </activity>
 
+        <service
+            android:name=".mesh.MeshRelayService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
+        <receiver
+            android:name=".mesh.MeshBootReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Foreground Service for Continuous Cross-App Background Tasks -->
         <service
             android:name=".service.ArushiAssistantService"
